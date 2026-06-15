@@ -45,22 +45,44 @@ class ContainerEngineModel(
 
     @Volatile
     private var refreshJob: Job? = null
+    @Volatile
+    private var pollJob: Job? = null
+    @Volatile
+    private var loadedOnce = false
     private val polling = AtomicBoolean(false)
 
     /**
-     * Called by the tree the first time the connection renders: kicks off the
-     * initial load (so the node never sticks on "loading…") and starts a gentle
-     * background poll so state changes — ours or external — show up without the
-     * user pressing Refresh. Idempotent; the poll lives until project dispose.
+     * Called by the tree the first time the connection renders (which only
+     * happens while the Services panel is visible): kicks off the initial load
+     * and starts the poll. Covers the "Services already visible at startup" case
+     * where no visibility event fires; [setPollingActive] then owns show/hide.
      */
     fun ensureLoaded() {
-        if (!polling.compareAndSet(false, true)) return
-        cs.launch {
-            refresh()
-            while (true) {
-                delay(POLL_INTERVAL_MS)
-                refresh()
+        if (loadedOnce) return
+        loadedOnce = true
+        setPollingActive(true)
+    }
+
+    /**
+     * Start/stop the background poll. Driven by Services tool-window visibility:
+     * while hidden, no `container` commands run; on becoming visible we refresh
+     * immediately and resume the gentle poll. The loop is cancelled on project
+     * dispose via the service [CoroutineScope].
+     */
+    fun setPollingActive(active: Boolean) {
+        if (active) {
+            if (!polling.compareAndSet(false, true)) return
+            refresh()  // refresh as soon as the panel appears
+            pollJob = cs.launch {
+                while (true) {
+                    delay(POLL_INTERVAL_MS)
+                    refresh()
+                }
             }
+        } else {
+            if (!polling.compareAndSet(true, false)) return
+            pollJob?.cancel()
+            pollJob = null
         }
     }
 
@@ -69,12 +91,27 @@ class ContainerEngineModel(
         refreshJob?.cancel()
         refreshJob = cs.launch(Dispatchers.IO) {
             val next = fetch()
-            val changed = state.value != next
+            // Rebuild the tree only when its *structure* changes (entities
+            // added/removed or a running-state flip), not on every volatile
+            // field (a running VM's diskSize drifts each poll). Otherwise the
+            // reset tears down the selected node and closes its toolbar/popups.
+            val restructured = structureKey(state.value) != structureKey(next)
             state.value = next
-            // Only rebuild the tree when something actually changed, so the
-            // background poll doesn't flicker the view every interval.
-            if (changed) structureChanged()
+            if (restructured) structureChanged()
         }
+    }
+
+    /** What the tree renders as nodes — excludes volatile per-entity fields. */
+    private fun structureKey(snapshot: EngineSnapshot): Any = when (snapshot) {
+        is EngineSnapshot.Data -> listOf(
+            snapshot.running,
+            snapshot.containers.map { it.id to it.state },
+            snapshot.images.map { it.reference },
+            snapshot.machines.map { it.id to it.state },
+            snapshot.volumes.map { it.id },
+            snapshot.networks.map { it.id },
+        )
+        else -> snapshot  // Loading / NotInstalled / Error compare by themselves
     }
 
     private suspend fun fetch(): EngineSnapshot {

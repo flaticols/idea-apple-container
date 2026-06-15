@@ -28,6 +28,11 @@
                                  instance="dev.flaticols.applecontainer.ContainerSettingsConfigurable"/>
     </extensions>
 
+    <projectListeners>
+        <listener class="dev.flaticols.applecontainer.services.ContainerServicesVisibilityListener"
+                  topic="com.intellij.openapi.wm.ex.ToolWindowManagerListener"/>
+    </projectListeners>
+
     <actions>
         <action id="AppleContainer.Add"
                 class="dev.flaticols.applecontainer.actions.AddConnectionAction"
