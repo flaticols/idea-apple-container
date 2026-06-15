@@ -4,6 +4,7 @@ import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.panel
 import dev.flaticols.applecontainer.cli.ContainerCli
@@ -28,6 +29,20 @@ class ContainerSettingsConfigurable : BoundConfigurable("Apple Container") {
         }
         row {
             comment(detectedHint())
+        }
+        group("Dockerfile Gutter") {
+            row {
+                checkBox("Include Docker's run options in the gutter menu")
+                    .bindSelected(settings::dockerfileGutterCombined)
+                    .comment("When off, the gutter menu shows only \"Run on 'Apple Container'\".")
+            }
+        }
+        group("Run / Stop") {
+            row {
+                checkBox("Stop the build daemon when stopping a run")
+                    .bindSelected(settings::stopBuilderOnStop)
+                    .comment("Off keeps the buildkit builder warm for fast cached rebuilds.")
+            }
         }
     }
 

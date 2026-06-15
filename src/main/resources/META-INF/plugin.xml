@@ -17,16 +17,26 @@
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
     <depends>org.jetbrains.plugins.terminal</depends>
+    <depends optional="true" config-file="apple-container-docker.xml">Docker</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <serviceViewContributor implementation="dev.flaticols.applecontainer.services.ContainerServiceContributor"/>
         <notificationGroup id="Apple Container" displayType="BALLOON"/>
+        <executionTargetType implementation="dev.flaticols.applecontainer.target.AppleContainerTargetType"/>
+        <configurationType implementation="dev.flaticols.applecontainer.run.AppleContainerConfigurationType"/>
+        <runConfigurationProducer implementation="dev.flaticols.applecontainer.run.DockerfileRunConfigurationProducer"/>
         <applicationConfigurable parentId="tools"
                                  id="dev.flaticols.applecontainer.settings"
                                  displayName="Apple Container"
                                  instance="dev.flaticols.applecontainer.ContainerSettingsConfigurable"/>
     </extensions>
+
+    <projectListeners>
+        <listener class="dev.flaticols.applecontainer.services.ContainerServicesVisibilityListener"
+                  topic="com.intellij.openapi.wm.ex.ToolWindowManagerListener"/>
+    </projectListeners>
 
     <actions>
         <action id="AppleContainer.Add"

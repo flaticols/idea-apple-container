@@ -137,8 +137,6 @@ sealed interface EntityNode {
     }
 }
 
-// -- descriptors -----------------------------------------------------------
-
 private class ConnectionDescriptor(private val project: Project) : ServiceViewDescriptor {
 
     private val model get() = ContainerEngineModel.getInstance(project)
@@ -326,8 +324,6 @@ private class NetworkDescriptor(private val project: Project, private val info: 
 
     override fun getRemover(): Runnable = Runnable { model.deleteNetwork(info.id) }
 }
-
-// -- small helpers ---------------------------------------------------------
 
 private fun data(title: String, subtitle: String, icon: javax.swing.Icon): PresentationData =
     PresentationData(title, subtitle.ifEmpty { null }, icon, null)

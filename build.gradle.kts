@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "dev.flaticols.applecontainer"
-version = "0.0.5"
+version = "0.0.12"
 
 repositories {
     mavenCentral()
@@ -30,7 +30,9 @@ dependencies {
             intellijIdea("2026.1.1")
         }
         bundledPlugin("org.jetbrains.plugins.terminal")  // "Open Terminal" attaches via the Terminal tool window
+        bundledPlugin("Docker")  // Dockerfile language + run-marker, for the gutter coexistence test
         pluginVerifier()
+        testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
     }
 
     testImplementation(kotlin("test"))
@@ -43,6 +45,21 @@ intellijPlatform {
             sinceBuild = "261"
         }
         changeNotes = """
+            <h4>0.0.11</h4>
+            <ul>
+              <li><b>Stop</b> on an Apple Container run configuration now actually stops the container (<code>container stop</code>), instead of only detaching the attached client and leaving it running.</li>
+              <li>Optional setting (<b>Tools ▸ Apple Container</b>): also stop the buildkit build daemon on Stop. Off by default so the builder stays warm for cached rebuilds.</li>
+            </ul>
+            <h4>0.0.10</h4>
+            <ul>
+              <li>The Dockerfile <b>FROM</b> gutter shows a single run icon whose menu offers both <b>Run on 'Apple Container'</b> and <b>Run on Docker</b> (Docker's own options). A new setting (<b>Tools ▸ Apple Container</b>) can switch it to show only the Apple Container action.</li>
+            </ul>
+            <h4>0.0.7</h4>
+            <ul>
+              <li><b>Run/Debug inside a machine</b>: an Apple Container <b>run target</b> executes any run configuration in a machine, using the home mount so no file upload is needed.</li>
+              <li><b>Build &amp; run a Dockerfile</b>: a new "Apple Container" run configuration builds an image and runs the container; available from <b>+ New Configuration</b> and from the Dockerfile gutter, side by side with Docker's own run action.</li>
+              <li>Failed engine commands now show a <b>Show Details</b> action with the full CLI error.</li>
+            </ul>
             <h4>0.0.5</h4>
             <ul>
               <li>Create Volume / Create Network dialogs now expose the full CLI option set (labels, driver/plugin options, IPv6 subnet, plugin, host-only).</li>
