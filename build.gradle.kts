@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "dev.flaticols.applecontainer"
-version = "0.0.4"
+version = "0.0.5"
 
 repositories {
     mavenCentral()
@@ -43,7 +43,7 @@ intellijPlatform {
             sinceBuild = "261"
         }
         changeNotes = """
-            <h4>0.0.4</h4>
+            <h4>0.0.5</h4>
             <ul>
               <li>Create Volume / Create Network dialogs now expose the full CLI option set (labels, driver/plugin options, IPv6 subnet, plugin, host-only).</li>
               <li>Updated the Terminal integration to the current (non-deprecated) platform API.</li>
