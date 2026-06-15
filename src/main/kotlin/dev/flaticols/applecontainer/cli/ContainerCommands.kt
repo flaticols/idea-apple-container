@@ -29,10 +29,16 @@ import dev.flaticols.applecontainer.cli.Flag.INTERNAL
 import dev.flaticols.applecontainer.cli.Flag.FOLLOW
 import dev.flaticols.applecontainer.cli.Flag.INTERACTIVE
 import dev.flaticols.applecontainer.cli.Flag.TTY
+import dev.flaticols.applecontainer.cli.Flag.TAG
+import dev.flaticols.applecontainer.cli.Flag.FILE
+import dev.flaticols.applecontainer.cli.Flag.NO_CACHE
+import dev.flaticols.applecontainer.cli.Flag.BUILD_ARG
 import dev.flaticols.applecontainer.cli.Verb.CREATE
 import dev.flaticols.applecontainer.cli.Verb.DELETE
 import dev.flaticols.applecontainer.cli.Verb.EXEC
 import dev.flaticols.applecontainer.cli.Verb.IMAGE
+import dev.flaticols.applecontainer.cli.Verb.BUILD
+import dev.flaticols.applecontainer.cli.Verb.BUILDER
 import dev.flaticols.applecontainer.cli.Verb.INSPECT
 import dev.flaticols.applecontainer.cli.Verb.KERNEL
 import dev.flaticols.applecontainer.cli.Verb.LIST
@@ -66,6 +72,7 @@ enum class Verb(val wire: String) {
     STOP("stop"),
     DELETE("delete"),
     INSPECT("inspect"),
+    BUILD("build"),
     CREATE("create"),
     SET_DEFAULT("set-default"),
     LOGS("logs"),
@@ -81,6 +88,7 @@ enum class Verb(val wire: String) {
     MACHINE("machine"),
     VOLUME("volume"),
     NETWORK("network"),
+    BUILDER("builder"),
 }
 
 /** Flag / option names. */
@@ -116,6 +124,10 @@ enum class Flag(val wire: String) {
     FOLLOW("--follow"),
     INTERACTIVE("--interactive"),
     TTY("--tty"),
+    TAG("--tag"),
+    FILE("--file"),
+    NO_CACHE("--no-cache"),
+    BUILD_ARG("--build-arg"),
 }
 
 /** An assembled `container` invocation — the argument vector, without the binary. */
@@ -182,6 +194,27 @@ object ContainerCommands {
     /** An interactive command in a running container (a shell, by default). */
     fun exec(id: String, command: List<String> = listOf("sh")): Command =
         cmd(EXEC) { flag(INTERACTIVE); flag(TTY); arg(id); args(command) }
+
+    /** Start the image builder (needed before [build]); a no-op if already running. */
+    fun builderStart(): Command = cmd(BUILDER, START)
+
+    /** Stop the image builder daemon (frees the buildkit container; next build restarts it). */
+    fun builderStop(): Command = cmd(BUILDER, STOP)
+
+    /** Build an image from a Dockerfile/Containerfile. */
+    fun build(
+        tag: String,
+        dockerfile: String? = null,
+        context: String = ".",
+        noCache: Boolean = false,
+        buildArgs: List<String> = emptyList(),
+    ): Command = cmd(BUILD) {
+        option(TAG, tag)
+        option(FILE, dockerfile)
+        flag(NO_CACHE, noCache)
+        options(BUILD_ARG, buildArgs)
+        arg(context)
+    }
 
     val system: System = System
     val image: Images = Images

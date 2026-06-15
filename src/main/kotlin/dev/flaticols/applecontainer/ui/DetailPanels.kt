@@ -98,8 +98,6 @@ object DetailPanels {
         ),
     )
 
-    // -- category tables (shown when a group node is selected) -------------
-
     fun containersTable(containers: List<ContainerInfo>): JComponent = table(
         ContainerIcons.CONTAINERS, "Containers", containers,
         columns = arrayOf("ID", "Image", "State", "IP", "OS", "Arch"),
@@ -153,8 +151,6 @@ object DetailPanels {
             add(JBScrollPane(JBTable(model).apply { setShowGrid(false) }), BorderLayout.CENTER)
         }
     }
-
-    // -- building blocks ---------------------------------------------------
 
     private fun page(header: JComponent, form: JComponent): JComponent {
         val top = JPanel(BorderLayout()).apply { add(form, BorderLayout.NORTH) }

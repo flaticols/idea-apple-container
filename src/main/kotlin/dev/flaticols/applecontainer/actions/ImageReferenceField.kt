@@ -18,6 +18,17 @@ import dev.flaticols.applecontainer.model.EngineSnapshot
  */
 class ImageReferenceField(project: Project, parent: Disposable) {
 
+    private companion object {
+        const val DEBOUNCE_MS = 300
+
+        /** Common base images, offered even before any Hub query. */
+        val CURATED = listOf(
+            "alpine", "ubuntu", "debian", "busybox", "fedora", "almalinux", "rockylinux",
+            "node", "python", "golang", "rust", "eclipse-temurin", "openjdk",
+            "nginx", "httpd", "redis", "postgres", "mysql", "mariadb", "mongo",
+        )
+    }
+
     /** References of images already on the engine (instant, offline). */
     private val local: List<String> =
         (ContainerEngineModel.getInstance(project).snapshot() as? EngineSnapshot.Data)
@@ -50,15 +61,4 @@ class ImageReferenceField(project: Project, parent: Disposable) {
     }
 
     private fun seed(): List<String> = (local + CURATED).distinct()
-
-    private companion object {
-        const val DEBOUNCE_MS = 300
-
-        /** Common base images, offered even before any Hub query. */
-        val CURATED = listOf(
-            "alpine", "ubuntu", "debian", "busybox", "fedora", "almalinux", "rockylinux",
-            "node", "python", "golang", "rust", "eclipse-temurin", "openjdk",
-            "nginx", "httpd", "redis", "postgres", "mysql", "mariadb", "mongo",
-        )
-    }
 }

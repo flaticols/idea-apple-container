@@ -1,8 +1,10 @@
 package dev.flaticols.applecontainer
 
 import com.intellij.execution.services.ServiceEventListener
+import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
@@ -38,18 +40,27 @@ class ContainerEngineModel(
     private val cs: CoroutineScope,
 ) {
 
-    private val state = MutableStateFlow<EngineSnapshot>(EngineSnapshot.Loading)
+    companion object {
+        private const val NOTIFICATION_GROUP = "Apple Container"
+        private const val POLL_INTERVAL_MS = 5_000L
 
-    /** Latest snapshot read synchronously by the Services tree. */
-    fun snapshot(): EngineSnapshot = state.value
+        fun getInstance(project: Project): ContainerEngineModel = project.service()
+    }
+
+    private val state = MutableStateFlow<EngineSnapshot>(EngineSnapshot.Loading)
+    private val polling = AtomicBoolean(false)
 
     @Volatile
     private var refreshJob: Job? = null
+
     @Volatile
     private var pollJob: Job? = null
+
     @Volatile
     private var loadedOnce = false
-    private val polling = AtomicBoolean(false)
+
+    /** Latest snapshot read synchronously by the Services tree. */
+    fun snapshot(): EngineSnapshot = state.value
 
     /**
      * Called by the tree the first time the connection renders (which only
@@ -95,23 +106,42 @@ class ContainerEngineModel(
             // added/removed or a running-state flip), not on every volatile
             // field (a running VM's diskSize drifts each poll). Otherwise the
             // reset tears down the selected node and closes its toolbar/popups.
-            val restructured = structureKey(state.value) != structureKey(next)
+            val restructured = engineStructureKey(state.value) != engineStructureKey(next)
             state.value = next
             if (restructured) structureChanged()
         }
     }
 
-    /** What the tree renders as nodes — excludes volatile per-entity fields. */
-    private fun structureKey(snapshot: EngineSnapshot): Any = when (snapshot) {
-        is EngineSnapshot.Data -> listOf(
-            snapshot.running,
-            snapshot.containers.map { it.id to it.state },
-            snapshot.images.map { it.reference },
-            snapshot.machines.map { it.id to it.state },
-            snapshot.volumes.map { it.id },
-            snapshot.networks.map { it.id },
-        )
-        else -> snapshot  // Loading / NotInstalled / Error compare by themselves
+    fun startEngine() = command("Starting Apple Container engine") { ContainerCli.startSystem() }
+    fun stopEngine() = command("Stopping Apple Container engine") { ContainerCli.stopSystem() }
+    fun pullImage(ref: String) = command("Pulling $ref") { ContainerCli.pullImage(ref) }
+    fun deleteImage(ref: String) = command("Removing image $ref") { ContainerCli.deleteImage(ref) }
+    fun runContainer(spec: RunSpec) = command("Running ${spec.image}") { ContainerCli.runContainer(spec) }
+
+    fun startContainer(id: String) = command("Starting $id") { ContainerCli.startContainer(id) }
+    fun stopContainer(id: String) = command("Stopping $id") { ContainerCli.stopContainer(id) }
+    fun deleteContainer(id: String) = command("Removing $id") { ContainerCli.deleteContainer(id) }
+
+    fun createMachine(image: String, name: String?) =
+        command("Creating machine from $image") { ContainerCli.createMachine(image, name) }
+    fun startMachine(id: String) = command("Starting machine $id") { ContainerCli.startMachine(id) }
+    fun stopMachine(id: String) = command("Stopping machine $id") { ContainerCli.stopMachine(id) }
+    fun deleteMachine(id: String) = command("Removing machine $id") { ContainerCli.deleteMachine(id) }
+    fun setDefaultMachine(id: String) = command("Setting $id as default machine") { ContainerCli.setDefaultMachine(id) }
+
+    fun createVolume(spec: VolumeSpec) = command("Creating volume ${spec.name}") { ContainerCli.createVolume(spec) }
+    fun deleteVolume(name: String) = command("Removing volume $name") { ContainerCli.deleteVolume(name) }
+    fun createNetwork(spec: NetworkSpec) = command("Creating network ${spec.name}") { ContainerCli.createNetwork(spec) }
+    fun deleteNetwork(name: String) = command("Removing network $name") { ContainerCli.deleteNetwork(name) }
+    fun setKernel(spec: KernelSpec) = command("Setting default kernel") { ContainerCli.setKernel(spec) }
+
+    /** Asks the Services view to rebuild our contributor's subtree (on the EDT). */
+    fun structureChanged() {
+        ApplicationManager.getApplication().invokeLater {
+            if (project.isDisposed) return@invokeLater
+            project.messageBus.syncPublisher(ServiceEventListener.TOPIC)
+                .handle(ServiceEventListener.ServiceEvent.createResetEvent(ContainerServiceContributor::class.java))
+        }
     }
 
     private suspend fun fetch(): EngineSnapshot {
@@ -145,32 +175,6 @@ class ContainerEngineModel(
         }
     }
 
-    // -- engine commands ---------------------------------------------------
-
-    fun startEngine() = command("Starting Apple Container engine") { ContainerCli.startSystem() }
-    fun stopEngine() = command("Stopping Apple Container engine") { ContainerCli.stopSystem() }
-    fun pullImage(ref: String) = command("Pulling $ref") { ContainerCli.pullImage(ref) }
-    fun deleteImage(ref: String) = command("Removing image $ref") { ContainerCli.deleteImage(ref) }
-    fun runContainer(spec: RunSpec) =
-        command("Running ${spec.image}") { ContainerCli.runContainer(spec) }
-
-    fun startContainer(id: String) = command("Starting $id") { ContainerCli.startContainer(id) }
-    fun stopContainer(id: String) = command("Stopping $id") { ContainerCli.stopContainer(id) }
-    fun deleteContainer(id: String) = command("Removing $id") { ContainerCli.deleteContainer(id) }
-
-    fun createMachine(image: String, name: String?) =
-        command("Creating machine from $image") { ContainerCli.createMachine(image, name) }
-    fun startMachine(id: String) = command("Starting machine $id") { ContainerCli.startMachine(id) }
-    fun stopMachine(id: String) = command("Stopping machine $id") { ContainerCli.stopMachine(id) }
-    fun deleteMachine(id: String) = command("Removing machine $id") { ContainerCli.deleteMachine(id) }
-    fun setDefaultMachine(id: String) = command("Setting $id as default machine") { ContainerCli.setDefaultMachine(id) }
-
-    fun createVolume(spec: VolumeSpec) = command("Creating volume ${spec.name}") { ContainerCli.createVolume(spec) }
-    fun deleteVolume(name: String) = command("Removing volume $name") { ContainerCli.deleteVolume(name) }
-    fun createNetwork(spec: NetworkSpec) = command("Creating network ${spec.name}") { ContainerCli.createNetwork(spec) }
-    fun deleteNetwork(name: String) = command("Removing network $name") { ContainerCli.deleteNetwork(name) }
-    fun setKernel(spec: KernelSpec) = command("Setting default kernel") { ContainerCli.setKernel(spec) }
-
     /**
      * Runs a mutating CLI command under a background-progress indicator, reports
      * the outcome as a balloon, then refreshes. Failures surface the CLI's
@@ -183,31 +187,45 @@ class ContainerEngineModel(
             }
             result
                 .onSuccess { notify(title, "Done.", NotificationType.INFORMATION) }
-                .onFailure { notify("$title failed", it.message ?: "See logs.", NotificationType.ERROR) }
+                .onFailure {
+                    val error = it.message ?: "See logs."
+                    notify("$title failed", error.lineSequence().first(), NotificationType.ERROR, details = error)
+                }
             refresh()
         }
     }
 
-    private fun notify(title: String, content: String, type: NotificationType) {
-        NotificationGroupManager.getInstance()
+    /**
+     * Posts a balloon. When [details] is set (and richer than the one-line
+     * [content] the balloon shows), adds a "Show Details" action that opens the
+     * full text — CLI stderr is often multi-line and truncated in the balloon.
+     */
+    private fun notify(title: String, content: String, type: NotificationType, details: String? = null) {
+        val notification = NotificationGroupManager.getInstance()
             .getNotificationGroup(NOTIFICATION_GROUP)
             .createNotification(title, content, type)
-            .notify(project)
-    }
-
-    /** Asks the Services view to rebuild our contributor's subtree (on the EDT). */
-    fun structureChanged() {
-        ApplicationManager.getApplication().invokeLater {
-            if (project.isDisposed) return@invokeLater
-            project.messageBus.syncPublisher(ServiceEventListener.TOPIC)
-                .handle(ServiceEventListener.ServiceEvent.createResetEvent(ContainerServiceContributor::class.java))
+        if (details != null && details != content) {
+            notification.addAction(NotificationAction.createSimple("Show Details") {
+                Messages.showMessageDialog(project, details, title, Messages.getErrorIcon())
+            })
         }
+        notification.notify(project)
     }
+}
 
-    companion object {
-        private const val NOTIFICATION_GROUP = "Apple Container"
-        private const val POLL_INTERVAL_MS = 5_000L
-
-        fun getInstance(project: Project): ContainerEngineModel = project.service()
-    }
+/**
+ * The tree's structural identity — entity ids + running state, excluding volatile
+ * per-entity fields (a running VM's diskSize drifts each poll). The Services view
+ * is only reset when this changes, so an idle selection keeps its toolbar/popups.
+ */
+internal fun engineStructureKey(snapshot: EngineSnapshot): Any = when (snapshot) {
+    is EngineSnapshot.Data -> listOf(
+        snapshot.running,
+        snapshot.containers.map { it.id to it.state },
+        snapshot.images.map { it.reference },
+        snapshot.machines.map { it.id to it.state },
+        snapshot.volumes.map { it.id },
+        snapshot.networks.map { it.id },
+    )
+    else -> snapshot  // Loading / NotInstalled / Error compare by themselves
 }

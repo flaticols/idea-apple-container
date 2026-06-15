@@ -53,12 +53,6 @@ class SetKernelDialog(private val project: Project) : DialogWrapper(project) {
         .panel
         .apply { preferredSize = Dimension(520, preferredSize.height) }
 
-    private fun syncEnabled() {
-        val customMode = custom.isSelected
-        tar.isEnabled = customMode
-        binary.isEnabled = customMode
-    }
-
     override fun doValidate(): ValidationInfo? =
         if (custom.isSelected && tar.text.isBlank() && binary.text.isBlank()) {
             ValidationInfo("Provide a tar archive or a kernel binary", tar)
@@ -77,5 +71,11 @@ class SetKernelDialog(private val project: Project) : DialogWrapper(project) {
                 force = force.isSelected,
             ),
         )
+    }
+
+    private fun syncEnabled() {
+        val customMode = custom.isSelected
+        tar.isEnabled = customMode
+        binary.isEnabled = customMode
     }
 }
