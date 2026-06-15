@@ -58,6 +58,15 @@ Requires the `container` CLI (1.0.0+) on macOS, and the bundled Terminal plugin
 - **`services/ContainerServiceContributor.kt`** builds the tree
   (connection → categories → entities) and hangs actions off the descriptors.
 
+## Screenshots
+
+<img width="1864" height="1354" alt="Screenshot 2026-06-15 at 15 35 14" src="https://github.com/user-attachments/assets/b91806b5-ac9c-4ab9-a281-62912bcc260f" />
+<img width="313" height="292" alt="Screenshot 2026-06-15 at 11 11 48" src="https://github.com/user-attachments/assets/e978cbb6-743e-4703-bedd-8f3e193c3cd5" />
+<img width="1527" height="438" alt="Screenshot 2026-06-15 at 11 11 45" src="https://github.com/user-attachments/assets/e2e347ef-e78c-4347-b859-05b98eaadb4e" />
+<img width="1528" height="433" alt="Screenshot 2026-06-15 at 11 11 25" src="https://github.com/user-attachments/assets/d3e0362c-5cd0-4aff-bbc0-cc32de6c07af" />
+<img width="649" height="464" alt="Screenshot 2026-06-15 at 11 11 13" src="https://github.com/user-attachments/assets/7a0b584a-342d-46ce-8c50-00e723886c88" />
+<img width="739" height="375" alt="Screenshot 2026-06-15 at 19 02 07" src="https://github.com/user-attachments/assets/e473ca9d-14e1-4ac5-952e-50c3b539d43e" />
+
 ## Build
 
 ```sh
