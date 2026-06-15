@@ -1,0 +1,40 @@
+<idea-plugin>
+    <id>dev.flaticols.applecontainer</id>
+    <name>Apple Container</name>
+    <vendor email="services@flaticols.dev" url="https://flaticols.dev">Denis Panfilov</vendor>
+    <description><![CDATA[
+        Apple Container (<a href="https://github.com/apple/container">github.com/apple/container</a>)
+        as a connection in the Services tool window. Manage the container engine
+        and inspect what it is running without leaving the IDE.
+        <ul>
+            <li>Add via the Services view's + popup: <b>Apple Container…</b></li>
+            <li>Start/stop the container engine; see its status, version and kernel.</li>
+            <li>Browse containers and images; run a container from an image.</li>
+            <li>Copy a container's IP address or id from the tree.</li>
+        </ul>
+        Requires the <code>container</code> CLI (1.0.0+) installed on macOS.
+        Machine management lands in a later version.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <serviceViewContributor implementation="dev.flaticols.applecontainer.services.ContainerServiceContributor"/>
+        <notificationGroup id="Apple Container" displayType="BALLOON"/>
+        <applicationConfigurable parentId="tools"
+                                 id="dev.flaticols.applecontainer.settings"
+                                 displayName="Apple Container"
+                                 instance="dev.flaticols.applecontainer.ContainerSettingsConfigurable"/>
+    </extensions>
+
+    <actions>
+        <action id="AppleContainer.Add"
+                class="dev.flaticols.applecontainer.actions.AddConnectionAction"
+                text="Apple Container…"
+                description="Manage the Apple Container engine in the Services tool window"
+                icon="AllIcons.Nodes.Console">
+            <add-to-group group-id="ServiceView.AddService" anchor="last"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>
