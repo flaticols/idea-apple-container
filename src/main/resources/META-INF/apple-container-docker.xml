@@ -1,0 +1,7 @@
+<idea-plugin>
+    <!-- Loaded only when the Docker plugin is present (it owns the Dockerfile language). -->
+    <extensions defaultExtensionNs="com.intellij">
+        <runLineMarkerContributor language="Dockerfile"
+                                   implementationClass="dev.flaticols.applecontainer.run.AppleContainerDockerfileRunLineMarker"/>
+    </extensions>
+</idea-plugin>
