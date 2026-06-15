@@ -228,6 +228,20 @@ object ContainerCommands {
 
         /** Interactive login shell in the machine (`machine run` with no executable). */
         fun shell(id: String): Command = cmd(MACHINE, RUN) { option(NAME, id) }
+
+        /**
+         * Non-interactive command in the machine for the Run Target:
+         * `machine run -n <id> -w <wd> -e K=V … -- <argv>`. The `--` separator is
+         * required so the executable's own flags (e.g. `-Dx`) aren't parsed by the CLI.
+         */
+        fun exec(id: String, command: List<String>, workdir: String? = null, env: List<String> = emptyList()): Command =
+            cmd(MACHINE, RUN) {
+                option(NAME, id)
+                option(WORKDIR, workdir)
+                options(ENV, env)
+                arg("--")
+                args(command)
+            }
     }
 
     object Volumes {
