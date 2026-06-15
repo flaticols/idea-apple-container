@@ -13,6 +13,10 @@ class AppleContainerTargetConfiguration :
     TargetEnvironmentConfiguration(TYPE_ID),
     PersistentStateComponent<AppleContainerTargetConfiguration.State> {
 
+    companion object {
+        const val TYPE_ID = "AppleContainer"
+    }
+
     class State : BaseState() {
         var machineId by string()
         var projectRoot by string()
@@ -36,8 +40,4 @@ class AppleContainerTargetConfiguration :
         set(value) {
             state.projectRoot = value
         }
-
-    companion object {
-        const val TYPE_ID = "AppleContainer"
-    }
 }
