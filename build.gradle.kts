@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "dev.flaticols.applecontainer"
-version = "0.0.1"
+version = "0.0.4"
 
 repositories {
     mavenCentral()
@@ -29,6 +29,7 @@ dependencies {
         } else {
             intellijIdea("2026.1.1")
         }
+        bundledPlugin("org.jetbrains.plugins.terminal")  // "Open Terminal" attaches via the Terminal tool window
         pluginVerifier()
     }
 
@@ -41,6 +42,31 @@ intellijPlatform {
         ideaVersion {
             sinceBuild = "261"
         }
+        changeNotes = """
+            <h4>0.0.4</h4>
+            <ul>
+              <li>Create Volume / Create Network dialogs now expose the full CLI option set (labels, driver/plugin options, IPv6 subnet, plugin, host-only).</li>
+              <li>Updated the Terminal integration to the current (non-deprecated) platform API.</li>
+            </ul>
+            <h4>0.0.3</h4>
+            <ul>
+              <li><b>Volumes</b> and <b>Networks</b>: list, create (full CLI option set) and delete.</li>
+              <li><b>Container logs</b> streamed into a console; <b>Open Terminal</b> into containers and machines.</li>
+              <li><b>Set Kernel…</b> on the engine — install the recommended kernel or a custom tar/binary.</li>
+              <li>Docker-style <b>Create Container</b> form (env, ports, volumes, working dir, user, network, resources, <code>--rm</code>).</li>
+              <li>Image-reference autocompletion: local images, curated bases and live Docker Hub search.</li>
+              <li>Plugin icon now matches the Apple Container logo.</li>
+            </ul>
+            <h4>0.0.2</h4>
+            <ul>
+              <li><b>Machine</b> management: create, start, stop, set as default, delete.</li>
+              <li>Background auto-refresh; fixed the initial "loading…" state on IDE start.</li>
+            </ul>
+            <h4>0.0.1</h4>
+            <ul>
+              <li>Initial release: add the connection, start/stop the engine, browse containers and images, run a container, copy IP/ID.</li>
+            </ul>
+        """.trimIndent()
     }
 
     publishing {

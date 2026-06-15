@@ -10,8 +10,14 @@ import com.intellij.execution.process.ProcessOutput
 import dev.flaticols.applecontainer.ContainerSettings
 import dev.flaticols.applecontainer.model.ContainerInfo
 import dev.flaticols.applecontainer.model.ImageInfo
+import dev.flaticols.applecontainer.model.KernelSpec
 import dev.flaticols.applecontainer.model.MachineInfo
+import dev.flaticols.applecontainer.model.NetworkInfo
+import dev.flaticols.applecontainer.model.NetworkSpec
+import dev.flaticols.applecontainer.model.RunSpec
 import dev.flaticols.applecontainer.model.SystemStatus
+import dev.flaticols.applecontainer.model.VolumeInfo
+import dev.flaticols.applecontainer.model.VolumeSpec
 import java.io.File
 
 /**
@@ -69,21 +75,40 @@ object ContainerCli {
     fun listImages(): List<ImageInfo> =
         parseArray(run(ContainerCommands.image.ls())).mapNotNull(::parseImage)
 
-    /** Groundwork; not surfaced in the UI yet. */
     fun listMachines(): List<MachineInfo> =
         parseArray(run(ContainerCommands.machine.ls())).mapNotNull(::parseMachine)
 
+    fun createMachine(image: String, name: String?) {
+        run(ContainerCommands.machine.create(image, name?.ifBlank { null }), LONG_TIMEOUT_MS)  // pulls + boots
+    }
+
+    fun startMachine(id: String) {
+        run(ContainerCommands.machine.start(id), LONG_TIMEOUT_MS)  // boots a VM
+    }
+
+    fun stopMachine(id: String) {
+        run(ContainerCommands.machine.stop(id))
+    }
+
+    fun deleteMachine(id: String) {
+        run(ContainerCommands.machine.delete(id))
+    }
+
+    fun setDefaultMachine(id: String) {
+        run(ContainerCommands.machine.setDefault(id))
+    }
+
     fun startSystem() {
         // Stdin is closed so the (interactive) "install kernel?" prompt cannot hang.
-        run(ContainerCommands.system.start())
+        run(ContainerCommands.system.start(), LONG_TIMEOUT_MS)
     }
 
     fun stopSystem() {
         run(ContainerCommands.system.stop())
     }
 
-    fun runContainer(image: String, name: String?, command: List<String>) {
-        run(ContainerCommands.run(image = image, name = name?.ifBlank { null }, command = command))
+    fun runContainer(spec: RunSpec) {
+        run(ContainerCommands.run(spec))
     }
 
     fun startContainer(id: String) {
@@ -99,34 +124,65 @@ object ContainerCli {
     }
 
     fun pullImage(ref: String) {
-        run(ContainerCommands.image.pull(ref))
+        run(ContainerCommands.image.pull(ref), LONG_TIMEOUT_MS)  // downloads
     }
 
     fun deleteImage(ref: String) {
         run(ContainerCommands.image.delete(ref))
     }
 
+    fun listVolumes(): List<VolumeInfo> =
+        parseArray(run(ContainerCommands.volume.ls())).mapNotNull(::parseVolume)
+
+    fun createVolume(spec: VolumeSpec) {
+        run(ContainerCommands.volume.create(spec))
+    }
+
+    fun deleteVolume(name: String) {
+        run(ContainerCommands.volume.delete(name))
+    }
+
+    fun listNetworks(): List<NetworkInfo> =
+        parseArray(run(ContainerCommands.network.ls())).mapNotNull(::parseNetwork)
+
+    fun createNetwork(spec: NetworkSpec) {
+        run(ContainerCommands.network.create(spec))
+    }
+
+    fun deleteNetwork(name: String) {
+        run(ContainerCommands.network.delete(name))
+    }
+
+    fun setKernel(spec: KernelSpec) {
+        run(ContainerCommands.system.setKernel(spec), LONG_TIMEOUT_MS)  // may download
+    }
+
     // -- execution ---------------------------------------------------------
 
+    /** A ready-to-run command line for streaming/interactive use (logs, terminal). */
+    fun commandLine(command: Command): GeneralCommandLine {
+        val exe = binary() ?: throw ContainerCliException("`container` CLI not found on PATH")
+        return GeneralCommandLine(exe)
+            .withParameters(command.argv)
+            .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
+    }
+
     /** Runs a command, returning stdout; throws [ContainerCliException] on failure. */
-    private fun run(command: Command): String {
-        val output = exec(command)
+    private fun run(command: Command, timeoutMs: Int = TIMEOUT_MS): String {
+        val output = exec(command, timeoutMs)
         if (output.isTimeout) throw ContainerCliException("`container ${command.argv.joinToString(" ")}` timed out")
         if (output.exitCode != 0) throw ContainerCliException(cliError(output.stderr, output.exitCode))
         return output.stdout
     }
 
-    private fun exec(command: Command): ProcessOutput {
-        val exe = binary() ?: throw ContainerCliException("`container` CLI not found on PATH")
-        val cmd = GeneralCommandLine(exe)
-            .withParameters(command.argv)
-            .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
-        return try {
-            CapturingProcessHandler(cmd).runProcess(TIMEOUT_MS)
+    private fun exec(command: Command, timeoutMs: Int = TIMEOUT_MS): ProcessOutput =
+        try {
+            CapturingProcessHandler(commandLine(command)).runProcess(timeoutMs)
+        } catch (e: ContainerCliException) {
+            throw e
         } catch (e: Exception) {
             throw ContainerCliException("cannot run container: ${e.message}")
         }
-    }
 
     private fun cliError(stderr: String, exitCode: Int): String =
         stderr.lineSequence()
@@ -165,9 +221,41 @@ object ContainerCli {
         )
     }
 
+    private fun parseVolume(row: JsonObject): VolumeInfo? {
+        val config = row.obj("configuration")
+        val id = row.str("id") ?: config.str("name") ?: return null
+        return VolumeInfo(
+            id = id,
+            driver = config.str("driver"),
+            format = config.str("format"),
+            sizeBytes = config.long("sizeInBytes"),
+            source = config.str("source"),
+        )
+    }
+
+    private fun parseNetwork(row: JsonObject): NetworkInfo? {
+        val config = row.obj("configuration")
+        val status = row.obj("status")
+        val id = row.str("id") ?: config.str("name") ?: return null
+        return NetworkInfo(
+            id = id,
+            mode = config.str("mode"),
+            subnet = status.str("ipv4Subnet"),
+            gateway = status.str("ipv4Gateway"),
+        )
+    }
+
     private fun parseMachine(row: JsonObject): MachineInfo? {
-        val name = row.str("name") ?: return null
-        return MachineInfo(name = name, state = row.str("state") ?: "unknown")
+        val id = row.str("id") ?: return null
+        return MachineInfo(
+            id = id,
+            state = row.str("status") ?: "unknown",
+            ip = row.str("ipAddress"),  // absent while stopped
+            cpus = row.int("cpus"),
+            memoryBytes = row.long("memory"),
+            diskBytes = row.long("diskSize"),
+            isDefault = row.bool("default"),
+        )
     }
 
     private fun parseObject(json: String): JsonObject =
@@ -182,9 +270,16 @@ object ContainerCli {
     private fun JsonObject?.arr(key: String): JsonArray = (this?.get(key) as? JsonArray) ?: JsonArray()
     private fun JsonObject?.str(key: String): String? =
         this?.get(key)?.takeIf { it.isJsonPrimitive }?.asString
+    private fun JsonObject?.int(key: String): Int? =
+        this?.get(key)?.takeIf { it.isJsonPrimitive }?.runCatching { asInt }?.getOrNull()
+    private fun JsonObject?.long(key: String): Long? =
+        this?.get(key)?.takeIf { it.isJsonPrimitive }?.runCatching { asLong }?.getOrNull()
+    private fun JsonObject?.bool(key: String): Boolean =
+        this?.get(key)?.takeIf { it.isJsonPrimitive }?.runCatching { asBoolean }?.getOrNull() ?: false
     private fun JsonArray.firstObject(): JsonObject? = firstOrNull() as? JsonObject
 
     private const val BINARY = "container"
     private const val DEFAULT_PATH = "/usr/local/bin/container"
     private const val TIMEOUT_MS = 60_000
+    private const val LONG_TIMEOUT_MS = 10 * 60_000  // downloads: image pull, kernel install, machine boot
 }

@@ -22,15 +22,14 @@ class AddConnectionAction : DumbAwareAction() {
     }
 
     override fun actionPerformed(e: AnActionEvent) {
-        e.project?.let(Companion::perform)
+        e.project?.let(::addContainerConnection)
     }
+}
 
-    companion object {
-        fun perform(project: Project) {
-            ContainerConnectionStore.getInstance(project).add()
-            val model = ContainerEngineModel.getInstance(project)
-            model.structureChanged()
-            model.refresh()
-        }
-    }
+/** Adds the local engine connection and kicks off the first refresh. */
+fun addContainerConnection(project: Project) {
+    ContainerConnectionStore.getInstance(project).add()
+    val model = ContainerEngineModel.getInstance(project)
+    model.structureChanged()
+    model.refresh()
 }

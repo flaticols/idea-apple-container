@@ -17,6 +17,7 @@
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.terminal</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <serviceViewContributor implementation="dev.flaticols.applecontainer.services.ContainerServiceContributor"/>
