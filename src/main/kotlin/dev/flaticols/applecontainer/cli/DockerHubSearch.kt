@@ -1,7 +1,7 @@
 package dev.flaticols.applecontainer.cli
 
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -20,6 +20,10 @@ object DockerHubSearch {
     const val MIN_QUERY = 2
     private const val BASE = "https://hub.docker.com/v2/search/repositories/"
 
+    @Serializable private data class HubSearch(val results: List<HubRepo> = emptyList())
+    @Serializable private data class HubRepo(val repo_name: String? = null)
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+
     private val http: HttpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(5))
         .build()
@@ -33,9 +37,7 @@ object DockerHubSearch {
             val request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(5)).GET().build()
             val response = http.send(request, HttpResponse.BodyHandlers.ofString())
             if (response.statusCode() !in 200..299) return emptyList()
-            JsonParser.parseString(response.body()).asJsonObject
-                .getAsJsonArray("results")
-                .mapNotNull { (it as? JsonObject)?.get("repo_name")?.takeIf { e -> e.isJsonPrimitive }?.asString }
+            json.decodeFromString<HubSearch>(response.body()).results.mapNotNull { it.repo_name }
         } catch (e: Exception) {
             emptyList()
         }
